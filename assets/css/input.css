@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .glass {
+    @apply bg-black/20 backdrop-blur-md border border-white/10;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-neon hover:border-neon-blue/30;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-neon-blue to-neon-purple text-transparent bg-clip-text;
+  }
+
+  .gradient-border {
+    @apply relative before:absolute before:inset-0 before:p-[1px] before:bg-gradient-to-r before:from-neon-blue before:to-neon-purple before:rounded-xl before:-z-10;
+  }
+}
