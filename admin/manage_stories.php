@@ -1,53 +1,52 @@
 <?php
+session_start();
 include_once '../components/connection.php';
 
 // Fetch stories with user details using the view
 $query = "SELECT * FROM view_stories_with_users ORDER BY created_at DESC";
 $result = mysqli_query($conn, $query);
+$stories = [];
+
+// Check if query was successful and has results
+if (mysqli_num_rows($result) > 0) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        array_push($stories, $row);
+    }
+}
+
+
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Stories - Alumni Portal</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
 <body class="bg-gray-900 text-white">
     <?php include_once '../components/adminHeader.php'; ?>
 
-    <div class="container mx-auto px-4 py-8">
-        <!-- Header Section -->
-        <div class="glass rounded-xl p-6 mb-6">
-            <div class="flex justify-between items-center">
+    <div class="pt-20 px-4 sm:px-6">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8">
                 <div>
-                    <h1 class="text-2xl font-bold bg-gradient-to-r from-neon-blue to-neon-purple text-transparent bg-clip-text">
-                        Manage Stories
-                    </h1>
-                    <p class="text-gray-400 mt-1">View and manage all stories posted by alumni</p>
-                </div>
-                <button onclick="openStoryModal()" class="px-4 py-2 rounded-lg bg-neon-blue hover:bg-neon-purple transition">
-                    <i class="fas fa-plus mr-2"></i>Add New Story
-                </button>
+                <h1 class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-neon-blue to-neon-purple text-transparent bg-clip-text">Manage Stories</h1>
+                <p class="text-gray-400 text-sm sm:text-base">View and manage all stories posted by alumni</p>
             </div>
+            <button onclick="openStoryModal()" class="mt-4 sm:mt-0 px-4 py-2 rounded-lg bg-gradient-to-r from-neon-blue to-neon-purple text-white hover:opacity-90 transition">
+                Add New Story
+            </button>
         </div>
 
         <!-- Search and Filter Section -->
-        <div class="glass rounded-xl p-6 mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="relative">
-                    <input type="text" id="searchInput" placeholder="Search stories..." 
-                           class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue">
-                    <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+        <div class="glass rounded-xl p-4 sm:p-6 border border-lighter/10 mb-6">
+            <div class="flex flex-wrap items-center gap-4">
+                <div class="relative flex-1 min-w-[200px]">
+                    <input type="search" 
+                           placeholder="Search stories..." 
+                           class="w-full bg-light/20 text-gray-300 placeholder-gray-400 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                 </div>
-                <select id="mediaTypeFilter" class="px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue">
+                <select class="bg-light/20 text-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all min-w-[150px]">
                     <option value="">All Media Types</option>
                     <option value="image">Images</option>
                     <option value="video">Videos</option>
                 </select>
-                <select id="statusFilter" class="px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue">
+                <select class="bg-light/20 text-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all min-w-[150px]">
                     <option value="">All Status</option>
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
@@ -57,113 +56,305 @@ $result = mysqli_query($conn, $query);
         </div>
 
         <!-- Stories Table -->
-        <div class="glass rounded-xl p-6">
-            <div class="overflow-x-auto">
-                <table class="w-full">
+        <div class="glass rounded-xl p-4 sm:p-6 border border-lighter/10 card-hover overflow-x-auto">
+            <table class="min-w-full divide-y divide-lighter/20">
                     <thead>
-                        <tr class="text-left border-b border-gray-700">
-                            <th class="pb-3 font-semibold text-neon-blue">ID</th>
-                            <th class="pb-3 font-semibold text-neon-blue">Story</th>
-                            <th class="pb-3 font-semibold text-neon-blue">Media Type</th>
-                            <th class="pb-3 font-semibold text-neon-blue">Posted By</th>
-                            <th class="pb-3 font-semibold text-neon-blue">Status</th>
-                            <th class="pb-3 font-semibold text-neon-blue">Date Created</th>
-                            <th class="pb-3 font-semibold text-neon-blue">Actions</th>
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Story</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Media Type</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Posted By</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date Created</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php if(mysqli_num_rows($result) > 0): ?>
-                            <?php while($row = mysqli_fetch_assoc($result)): ?>
-                                <tr class="border-b border-gray-700 hover:bg-gray-800/50 transition">
-                                    <td class="py-4"><?= $row['story_id'] ?></td>
-                                    <td class="py-4">
-                                        <div class="flex items-center space-x-3">
-                                            <?php if($row['media_type'] == 'image'): ?>
-                                                <img src="../assets/uploads/stories/<?= $row['vimage'] ?>" 
-                                                     alt="Story Image" 
-                                                     class="w-12 h-12 rounded-lg object-cover">
-                                            <?php endif; ?>
-                                            <div>
-                                                <h4 class="font-medium text-white"><?= htmlspecialchars($row['title']) ?></h4>
-                                                <p class="text-sm text-gray-400"><?= substr(htmlspecialchars($row['description']), 0, 50) ?>...</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="py-4">
-                                        <span class="px-2 py-1 rounded-full text-xs font-semibold 
-                                            <?= $row['media_type'] == 'image' ? 'bg-neon-blue/20 text-neon-blue' : 'bg-neon-purple/20 text-neon-purple' ?>">
-                                            <?= ucfirst($row['media_type']) ?>
-                                        </span>
-                                    </td>
-                                    <td class="py-4">
-                                        <div class="flex items-center space-x-2">
-                                            <span class="text-white"><?= htmlspecialchars($row['username']) ?></span>
-                                            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-neon-blue/20 text-neon-blue">
-                                                <?= htmlspecialchars($row['role']) ?>
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4">
-                                        <span class="px-2 py-1 rounded-full text-xs font-semibold 
-                                            <?php
-                                            switch($row['status']) {
-                                                case 'pending':
-                                                    echo 'bg-yellow-500/20 text-yellow-500';
-                                                    break;
-                                                case 'approved':
-                                                    echo 'bg-neon-green/20 text-neon-green';
-                                                    break;
-                                                case 'rejected':
-                                                    echo 'bg-red-500/20 text-red-500';
-                                                    break;
-                                            }
-                                            ?>">
-                                            <?= ucfirst($row['status']) ?>
-                                        </span>
-                                    </td>
-                                    <td class="py-4 text-gray-400">
-                                        <?= date('M d, Y', strtotime($row['created_at'])) ?>
-                                    </td>
-                                    <td class="py-4">
-                                        <div class="flex items-center space-x-2">
-                                            <button onclick="openStoryViewModal(<?= $row['story_id'] ?>)" 
-                                                    class="text-neon-blue hover:text-neon-purple">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                            <button onclick="openStoryModal(<?= $row['story_id'] ?>)" 
-                                                    class="text-yellow-500 hover:text-yellow-400">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button onclick="openStoryDeleteModal(<?= $row['story_id'] ?>)" 
-                                                    class="text-red-500 hover:text-red-400">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="7" class="py-4 text-center text-gray-400">
-                                    No stories found
-                                </td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+                <tbody class="divide-y divide-lighter/10">
+                    <?php if (empty($stories)): ?>
+                    <tr>
+                        <td colspan="7" class="px-4 py-3 text-center text-gray-400">
+                            No stories found
+                        </td>
+                    </tr>
+                    <?php else: ?>
+                    <?php foreach ($stories as $story): ?>
+                    <tr class="hover:bg-light/5 transition-colors">
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300"><?= $story['story_id'] ?></td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center">
+                                <?php if($story['media_type'] == 'image' && $story['vimage']): ?>
+                                <div class="flex-shrink-0 h-12 w-20">
+                                    <img class="h-12 w-20 rounded-lg object-cover"
+                                         src="../assets/uploads/stories/<?= htmlspecialchars($story['vimage']) ?>"
+                                         alt="Story Image">
+                                </div>
+                                <?php elseif($story['media_type'] == 'video' && $story['vimage']): ?>
+                                <div class="flex-shrink-0 h-12 w-20 flex items-center justify-center bg-dark rounded-lg">
+                                    <i class="fas fa-video text-2xl text-neon-purple"></i>
+                                </div>
+                                <?php endif; ?>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-white">
+                                        <?= htmlspecialchars($story['title']) ?>
+                                    </div>
+                                    <div class="text-xs text-gray-400 truncate max-w-[200px]">
+                                        <?= htmlspecialchars($story['description']) ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold <?= $story['media_type'] == 'image' ? 'bg-neon-blue/20 text-neon-blue' : 'bg-neon-purple/20 text-neon-purple' ?>">
+                                <i class="fas <?= $story['media_type'] == 'image' ? 'fa-image' : 'fa-video' ?> mr-1"></i>
+                                <?= ucfirst($story['media_type']) ?>
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">
+                            <div class="text-gray-300"><?= htmlspecialchars($story['username']) ?></div>
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-neon-purple/20 text-neon-purple">
+                                <?= htmlspecialchars($story['role']) ?>
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                            <?= date('M d, Y', strtotime($story['created_at'])) ?>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">
+                            <div class="flex space-x-2">
+                                <button onclick="openStoryViewModal(<?= $story['story_id'] ?>)" class="text-neon-blue hover:text-white transition-colors" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button onclick="openStoryModal(<?= $story['story_id'] ?>)" class="text-neon-green hover:text-white transition-colors" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="openStoryDeleteModal(<?= $story['story_id'] ?>)" class="text-neon-pink hover:text-white transition-colors" title="Delete">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <div class="flex items-center justify-between mt-4">
+                <div class="text-sm text-gray-400">
+                    Showing <span class="font-medium">1</span> to <span class="font-medium"><?= count($stories) ?></span> of <span class="font-medium"><?= count($stories) ?></span> results
+                </div>
+                <div class="flex space-x-2">
+                    <button class="px-3 py-1 rounded-lg bg-light/20 text-gray-400 hover:text-white hover:bg-light/30 transition-colors">
+                        Previous
+                    </button>
+                    <button class="px-3 py-1 rounded-lg bg-light/20 text-gray-400 hover:text-white hover:bg-light/30 transition-colors">
+                        Next
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="../assets/js/modalFunction.js"></script>
     <script>
-        // Show success/error messages if present in URL
+        // Function to open story modal
+        function openStoryModal(storyId = null) {
+            const url = storyId ? `../forms/modalStory.php?id=${storyId}` : '../forms/modalStory.php';
+            
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    const tempContainer = document.createElement('div');
+                    tempContainer.innerHTML = html;
+                    
+                    const modal = tempContainer.querySelector('#storyModal');
+                    if (modal) {
+                        document.body.appendChild(modal);
+                        requestAnimationFrame(() => {
+                            modal.classList.remove('hidden');
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading modal:', error);
+                    showToast('Failed to load form. Please try again.', 'error');
+                });
+        }
+
+        // Function to open view modal
+        function openStoryViewModal(storyId) {
+            fetch(`../forms/modalStory.php?id=${storyId}&view=true`)
+                .then(response => response.text())
+                .then(html => {
+                    const tempContainer = document.createElement('div');
+                    tempContainer.innerHTML = html;
+                    
+                    const modal = tempContainer.querySelector('#viewModal');
+                    if (modal) {
+                        document.body.appendChild(modal);
+                        requestAnimationFrame(() => {
+                            modal.classList.remove('hidden');
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading view modal:', error);
+                    showToast('Failed to load story details. Please try again.', 'error');
+                });
+        }
+
+        // Function to open delete modal
+        function openStoryDeleteModal(storyId) {
+            fetch('../forms/modalStory.php')
+                .then(response => response.text())
+                .then(html => {
+                    const tempContainer = document.createElement('div');
+                    tempContainer.innerHTML = html;
+                    
+                    const deleteModal = tempContainer.querySelector('#deleteModal');
+                    if (deleteModal) {
+                        document.body.appendChild(deleteModal);
+                        document.getElementById('deleteStoryId').value = storyId;
+                        requestAnimationFrame(() => {
+                            deleteModal.classList.remove('hidden');
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading delete modal:', error);
+                    showToast('Failed to load delete confirmation. Please try again.', 'error');
+                });
+        }
+
+        // Function to close modals
+        function closeModal() {
+            const modal = document.getElementById('storyModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                setTimeout(() => {
+                    if (modal.parentNode) {
+                        modal.parentNode.removeChild(modal);
+                    }
+                }, 300);
+            }
+        }
+
+        function closeViewModal() {
+            const modal = document.getElementById('viewModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                setTimeout(() => {
+                    if (modal.parentNode) {
+                        modal.parentNode.removeChild(modal);
+                    }
+                }, 300);
+            }
+        }
+
+        function closeDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                setTimeout(() => {
+                    if (modal.parentNode) {
+                        modal.parentNode.removeChild(modal);
+                    }
+                }, 300);
+            }
+        }
+
+        // Handle click outside to close modals
+        document.addEventListener('click', function(event) {
+            const storyModal = document.getElementById('storyModal');
+            if (storyModal && !storyModal.contains(event.target) && !event.target.closest('[data-modal-trigger]')) {
+                closeModal();
+            }
+            
+            const viewModal = document.getElementById('viewModal');
+            if (viewModal && !viewModal.contains(event.target) && !event.target.closest('[data-modal-trigger]')) {
+                closeViewModal();
+            }
+            
+            const deleteModal = document.getElementById('deleteModal');
+            if (deleteModal && !deleteModal.contains(event.target) && !event.target.closest('[data-modal-trigger]')) {
+                closeDeleteModal();
+            }
+        });
+
+        // Handle form submission success/error messages
+        document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
-        const message = urlParams.get('message');
-        const type = urlParams.get('type');
-        
-        if(message) {
-            showToast(message, type || 'success');
+            
+            if (urlParams.has('success')) {
+                const successValue = urlParams.get('success');
+                let message = '';
+                
+                switch(successValue) {
+                    case '1':
+                        message = 'Story added successfully!';
+                        break;
+                    case '2':
+                        message = 'Story updated successfully!';
+                        break;
+                    case '3':
+                        message = 'Story deleted successfully!';
+                        break;
+                }
+                
+                if (message) {
+                    showToast(message, 'success');
+                }
+            }
+            
+            if (urlParams.has('error')) {
+                const errorValue = urlParams.get('error');
+                let message = 'An error occurred. Please try again.';
+                
+                switch(errorValue) {
+                    case 'missing_fields':
+                        message = 'Please fill in all required fields.';
+                        break;
+                    case 'story_creation_failed':
+                        message = 'Failed to create story.';
+                        break;
+                    case 'story_update_failed':
+                        message = 'Failed to update story.';
+                        break;
+                    case 'story_delete_failed':
+                        message = 'Failed to delete story.';
+                        break;
+                    case 'story_not_found':
+                        message = 'Story not found.';
+                        break;
+                    case 'unauthorized':
+                        message = 'You are not authorized to perform this action.';
+                        break;
+                }
+                
+                showToast(message, 'error');
+            }
+        });
+
+        // Toast notification function
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 ${
+                type === 'success' ? 'bg-neon-green' : 'bg-red-500'
+            }`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            requestAnimationFrame(() => {
+                toast.style.opacity = '1';
+            });
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
         }
     </script>
 </body>
