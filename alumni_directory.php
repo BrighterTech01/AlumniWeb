@@ -12,14 +12,14 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
     exit();
 }
 
-// Fetch user details from view_user_details
+// Fetch user details from users table
 $user_id = $_SESSION['user_id'];
-$query = "SELECT * FROM view_user_details WHERE user_id = '$user_id'";
+$query = "SELECT * FROM users WHERE user_id = '$user_id'";
 $result = mysqli_query($conn, $query);
 $user = mysqli_fetch_assoc($result);
 
 // Construct full name
-$fullname = trim($user['firstname'] . ' ' . $user['middlename'] . ' ' . $user['lastname']);
+$fullname = trim($user['firstname'] . ' ' . ($user['middlename'] ? $user['middlename'] . ' ' : '') . $user['lastname']);
 
 // Get filter parameters
 $filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
@@ -28,67 +28,49 @@ $batch = isset($_GET['batch']) ? $_GET['batch'] : '';
 $course = isset($_GET['course']) ? $_GET['course'] : '';
 
 // Build the alumni query based on filters
-$alumni_query = "SELECT * FROM view_user_details WHERE role = 'Alumni' AND status = 1";
+$alumni_query = "SELECT u.*, c.name AS course_name 
+                 FROM users u 
+                 LEFT JOIN courses c ON u.course_id = c.course_id 
+                 WHERE u.role = 'Alumni' AND u.status = 1";
 
 if ($filter === 'recent') {
-    $alumni_query .= " ORDER BY date_created DESC";
+    $alumni_query .= " ORDER BY u.date_created DESC";
 }
 
 if (!empty($search)) {
     $search = mysqli_real_escape_string($conn, $search);
-    $alumni_query .= " AND (firstname LIKE '%$search%' OR lastname LIKE '%$search%' OR course_name LIKE '%$search%' OR batch LIKE '%$search%')";
+    $alumni_query .= " AND (u.firstname LIKE '%$search%' OR u.lastname LIKE '%$search%' OR c.name LIKE '%$search%' OR u.batch LIKE '%$search%')";
 }
 
 if (!empty($batch)) {
     $batch = mysqli_real_escape_string($conn, $batch);
-    $alumni_query .= " AND batch = '$batch'";
+    $alumni_query .= " AND u.batch = '$batch'";
 }
 
 if (!empty($course)) {
     $course = mysqli_real_escape_string($conn, $course);
-    $alumni_query .= " AND course_id = '$course'";
+    $alumni_query .= " AND u.course_id = '$course'";
 }
 
-$alumni_query .= " ORDER BY lastname ASC";
+$alumni_query .= " ORDER BY u.lastname ASC";
 $alumni_result = mysqli_query($conn, $alumni_query);
 
 // Get unique batches for filter
-$batches_query = "SELECT DISTINCT batch FROM view_user_details WHERE role = 'Alumni' AND status = 1 ORDER BY batch DESC";
+$batches_query = "SELECT DISTINCT batch FROM users WHERE role = 'Alumni' AND status = 1 ORDER BY batch DESC";
 $batches_result = mysqli_query($conn, $batches_query);
 
 // Get unique courses for filter
-$courses_query = "SELECT DISTINCT course_id, course_name FROM view_user_details WHERE role = 'Alumni' AND status = 1 ORDER BY course_name ASC";
+$courses_query = "SELECT DISTINCT u.course_id, c.name AS course_name 
+                  FROM users u 
+                  LEFT JOIN courses c ON u.course_id = c.course_id 
+                  WHERE u.role = 'Alumni' AND u.status = 1 
+                  ORDER BY c.name ASC";
 $courses_result = mysqli_query($conn, $courses_query);
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NMSCST Alumni Portal - Alumni Directory</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        .glass {
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .neon-glow {
-            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
-        }
-        .alumni-card {
-            transition: transform 0.2s ease-in-out;
-        }
-        .alumni-card:hover {
-            transform: translateY(-2px);
-        }
-    </style>
-</head>
+<?php include 'components/userHeader.php'; ?>
 <body class="bg-gradient-to-br from-gray-900 to-gray-800 min-h-screen text-white">
-    <?php include 'components/userHeader.php'; ?>
+   
 
     <div class="container mx-auto px-4 py-8 mt-16">
         <div class="max-w-7xl mx-auto">
@@ -107,27 +89,24 @@ $courses_result = mysqli_query($conn, $courses_query);
                                    class="w-full bg-light/20 text-gray-300 placeholder-gray-400 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
                             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <select name="batch" class="bg-light/20 text-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
+                        <div class="flex flex-col sm:flex-row items-center gap-3 sm:gap-2 w-full mt-3 sm:mt-0">
+                            <select name="batch" class="w-full sm:w-auto bg-light/20 text-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
                                 <option value="">All Batches</option>
                                 <?php while ($batch_row = mysqli_fetch_assoc($batches_result)): ?>
-                                    <option value="<?php echo htmlspecialchars($batch_row['batch']); ?>" 
-                                            <?php echo $batch == $batch_row['batch'] ? 'selected' : ''; ?>>
+                                    <option value="<?php echo htmlspecialchars($batch_row['batch']); ?>" <?php echo $batch == $batch_row['batch'] ? 'selected' : ''; ?>>
                                         Batch <?php echo htmlspecialchars($batch_row['batch']); ?>
                                     </option>
                                 <?php endwhile; ?>
                             </select>
-                            <select name="course" class="bg-light/20 text-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
+                            <select name="course" class="w-full sm:w-auto bg-light/20 text-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
                                 <option value="">All Courses</option>
                                 <?php while ($course_row = mysqli_fetch_assoc($courses_result)): ?>
-                                    <option value="<?php echo htmlspecialchars($course_row['course_id']); ?>"
-                                            <?php echo $course == $course_row['course_id'] ? 'selected' : ''; ?>>
+                                    <option value="<?php echo htmlspecialchars($course_row['course_id']); ?>" <?php echo $course == $course_row['course_id'] ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($course_row['course_name']); ?>
                                     </option>
                                 <?php endwhile; ?>
                             </select>
-                            <a href="?filter=recent<?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($batch) ? '&batch=' . urlencode($batch) : ''; ?><?php echo !empty($course) ? '&course=' . urlencode($course) : ''; ?>" 
-                               class="px-4 py-2 rounded-lg <?php echo $filter === 'recent' ? 'bg-primary/20 text-white border border-primary/30 neon-glow' : 'bg-light/20 text-gray-400 hover:text-white transition-colors'; ?>">
+                            <a href="?filter=recent<?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($batch) ? '&batch=' . urlencode($batch) : ''; ?><?php echo !empty($course) ? '&course=' . urlencode($course) : ''; ?>" class="w-full sm:w-auto px-4 py-2 rounded-lg <?php echo $filter === 'recent' ? 'bg-primary/20 text-white border border-primary/30 neon-glow' : 'bg-light/20 text-gray-400 hover:text-white transition-colors'; ?> text-center">
                                 Recent
                             </a>
                         </div>
@@ -139,7 +118,7 @@ $courses_result = mysqli_query($conn, $courses_query);
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <?php if (mysqli_num_rows($alumni_result) > 0): ?>
                     <?php while ($alumni = mysqli_fetch_assoc($alumni_result)): ?>
-                        <div class="alumni-card glass rounded-xl overflow-hidden border border-lighter/10">
+                        <div class="alumni-card glass rounded-xl overflow-hidden border border-lighter/10 cursor-pointer" onclick="openAlumniModal(<?php echo $alumni['user_id']; ?>)">
                             <div class="relative">
                                 <?php if (!empty($alumni['image'])): ?>
                                     <img src="./assets/uploads/alumni/<?php echo htmlspecialchars($alumni['image']); ?>" 
@@ -211,6 +190,8 @@ $courses_result = mysqli_query($conn, $courses_query);
         </div>
     </div>
 
+    <!-- Modal container -->
+    <div id="alumniModalContainer"></div>
     <script>
         // Add search functionality
         document.querySelector('input[type="search"]').addEventListener('keypress', function(e) {
@@ -235,6 +216,18 @@ $courses_result = mysqli_query($conn, $courses_query);
             if (course) url += `&course=${encodeURIComponent(course)}`;
             
             window.location.href = url;
+        }
+
+        function openAlumniModal(alumnusId) {
+            fetch('forms/alumniModal/modalAlumni.php?id=' + alumnusId)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('alumniModalContainer').innerHTML = html;
+                });
+        }
+
+        function closeAlumniModal() {
+            document.getElementById('alumniModalContainer').innerHTML = '';
         }
     </script>
 </body>

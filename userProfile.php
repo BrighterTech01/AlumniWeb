@@ -12,17 +12,20 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
     exit();
 }
 
-// Fetch user details from view_user_details
+// Fetch user details from users table with course join
 $user_id = $_SESSION['user_id'];
-$query = "SELECT * FROM view_user_details WHERE user_id = '$user_id'";
+$query = "SELECT u.*, c.name AS course_name 
+          FROM users u 
+          LEFT JOIN courses c ON u.course_id = c.course_id 
+          WHERE u.user_id = '$user_id'";
 $result = mysqli_query($conn, $query);
 $user = mysqli_fetch_assoc($result);
 
 // Construct full name
-$fullname = trim($user['firstname'] . ' ' . $user['middlename'] . ' ' . $user['lastname']);
+$fullname = trim($user['firstname'] . ' ' . ($user['middlename'] ? $user['middlename'] . ' ' : '') . $user['lastname']);
 
 // Calculate profile completion
-$required_fields = ['firstname', 'lastname', 'gender', 'batch', 'course_id', 'contact', 'address', 'city', 'country', 'graduation_year'];
+$required_fields = ['firstname', 'lastname', 'gender', 'batch', 'course_id', 'contact', 'district', 'city', 'province', 'country', 'graduation_year'];
 $completed_fields = 0;
 foreach ($required_fields as $field) {
     if (!empty($user[$field])) {
@@ -100,10 +103,6 @@ $profile_complete = ($completed_fields == count($required_fields));
                         <h3 class="text-lg font-semibold text-neon-blue mb-4">Account Information</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-gray-400 text-sm">Username</label>
-                                <div class="text-white font-medium"><?php echo htmlspecialchars($user['username'] ?? 'Not specified'); ?></div>
-                            </div>
-                            <div>
                                 <label class="block text-gray-400 text-sm">Email</label>
                                 <div class="text-white font-medium"><?php echo htmlspecialchars($user['email'] ?? 'Not specified'); ?></div>
                             </div>
@@ -123,12 +122,6 @@ $profile_complete = ($completed_fields == count($required_fields));
                                 <label class="block text-gray-400 text-sm">Date Created</label>
                                 <div class="text-white font-medium">
                                     <?php echo isset($user['date_created']) ? date('F d, Y h:i A', strtotime($user['date_created'])) : 'Not specified'; ?>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-gray-400 text-sm">Last Updated</label>
-                                <div class="text-white font-medium">
-                                    <?php echo isset($user['date_updated']) ? date('F d, Y h:i A', strtotime($user['date_updated'])) : 'Not specified'; ?>
                                 </div>
                             </div>
                         </div>
@@ -153,12 +146,16 @@ $profile_complete = ($completed_fields == count($required_fields));
                         <div class="text-white font-medium"><?php echo htmlspecialchars($user['contact'] ?? 'Not specified'); ?></div>
                     </div>
                     <div>
-                        <label class="block text-gray-400 text-sm">Address</label>
-                        <div class="text-white font-medium"><?php echo htmlspecialchars($user['address'] ?? 'Not specified'); ?></div>
+                        <label class="block text-gray-400 text-sm">District</label>
+                        <div class="text-white font-medium"><?php echo htmlspecialchars($user['district'] ?? 'Not specified'); ?></div>
                     </div>
                     <div>
                         <label class="block text-gray-400 text-sm">City</label>
                         <div class="text-white font-medium"><?php echo htmlspecialchars($user['city'] ?? 'Not specified'); ?></div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-sm">Province</label>
+                        <div class="text-white font-medium"><?php echo htmlspecialchars($user['province'] ?? 'Not specified'); ?></div>
                     </div>
                     <div>
                         <label class="block text-gray-400 text-sm">Country</label>
@@ -201,45 +198,50 @@ $profile_complete = ($completed_fields == count($required_fields));
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-gray-400 text-sm mb-1">First Name</label>
-                        <input type="text" name="firstname" value="<?php echo htmlspecialchars($user['firstname']); ?>" 
+                        <input type="text" name="firstname" value="<?php echo htmlspecialchars($user['firstname'] ?? ''); ?>" 
                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-gray-400 text-sm mb-1">Middle Name</label>
-                        <input type="text" name="middlename" value="<?php echo htmlspecialchars($user['middlename']); ?>" 
+                        <input type="text" name="middlename" value="<?php echo htmlspecialchars($user['middlename'] ?? ''); ?>" 
                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-gray-400 text-sm mb-1">Last Name</label>
-                        <input type="text" name="lastname" value="<?php echo htmlspecialchars($user['lastname']); ?>" 
+                        <input type="text" name="lastname" value="<?php echo htmlspecialchars($user['lastname'] ?? ''); ?>" 
                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-gray-400 text-sm mb-1">Gender</label>
                         <select name="gender" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
                             <option value="">Select Gender</option>
-                            <option value="Male" <?php echo $user['gender'] == 'Male' ? 'selected' : ''; ?>>Male</option>
-                            <option value="Female" <?php echo $user['gender'] == 'Female' ? 'selected' : ''; ?>>Female</option>
+                            <option value="Male" <?php echo (isset($user['gender']) && $user['gender'] == 'Male') ? 'selected' : ''; ?>>Male</option>
+                            <option value="Female" <?php echo (isset($user['gender']) && $user['gender'] == 'Female') ? 'selected' : ''; ?>>Female</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-gray-400 text-sm mb-1">Contact</label>
-                        <input type="text" name="contact" value="<?php echo htmlspecialchars($user['contact']); ?>" 
+                        <input type="text" name="contact" value="<?php echo htmlspecialchars($user['contact'] ?? ''); ?>" 
                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
-                        <label class="block text-gray-400 text-sm mb-1">Address</label>
-                        <input type="text" name="address" value="<?php echo htmlspecialchars($user['address']); ?>" 
+                        <label class="block text-gray-400 text-sm mb-1">District</label>
+                        <input type="text" name="district" value="<?php echo htmlspecialchars($user['district'] ?? ''); ?>" 
                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-gray-400 text-sm mb-1">City</label>
-                        <input type="text" name="city" value="<?php echo htmlspecialchars($user['city']); ?>" 
+                        <input type="text" name="city" value="<?php echo htmlspecialchars($user['city'] ?? ''); ?>" 
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">Province</label>
+                        <input type="text" name="province" value="<?php echo htmlspecialchars($user['province'] ?? ''); ?>" 
                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-gray-400 text-sm mb-1">Country</label>
-                        <input type="text" name="country" value="<?php echo htmlspecialchars($user['country']); ?>" 
+                        <input type="text" name="country" value="<?php echo htmlspecialchars($user['country'] ?? ''); ?>" 
                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
                     </div>
                 </div>

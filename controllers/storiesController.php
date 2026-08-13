@@ -62,10 +62,25 @@ if(isset($_POST['create_story'])) {
     $result = mysqli_query($conn, $query);
     
     if($result) {
-        header('location: ../stories.php?success=1');
+        // Determine redirect based on referer or user role
+        $is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'Admin';
+        $is_from_admin = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'manage_stories.php') !== false;
+        
+        if($is_admin && $is_from_admin) {
+            header('location: ../admin/manage_stories.php?success=1');
+        } else {
+            header('location: ../stories.php?success=1');
+        }
         exit();
     } else {
-        header('location: ../stories.php?error=story_creation_failed');
+        $is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'Admin';
+        $is_from_admin = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'manage_stories.php') !== false;
+        
+        if($is_admin && $is_from_admin) {
+            header('location: ../admin/manage_stories.php?error=story_creation_failed');
+        } else {
+            header('location: ../stories.php?error=story_creation_failed');
+        }
         exit();
     }
 }
@@ -130,10 +145,16 @@ elseif (isset($_POST['update_story'])) {
     $result = mysqli_query($conn, $query);
     
     if($result) {
-        header('location: ../stories.php?success=2');
+        $redirect_url = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'manage_stories.php') !== false 
+            ? '../admin/manage_stories.php?success=2' 
+            : '../stories.php?success=2';
+        header('location: ' . $redirect_url);
         exit();
     } else {
-        header('location: ../stories.php?error=story_update_failed');
+        $redirect_url = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'manage_stories.php') !== false 
+            ? '../admin/manage_stories.php?error=story_update_failed' 
+            : '../stories.php?error=story_update_failed';
+        header('location: ' . $redirect_url);
         exit();
     }
 }
@@ -175,18 +196,30 @@ elseif (isset($_POST['delete_story'])) {
                     }
                 }
                 
-                header('location: ../stories.php?success=3');
+                $redirect_url = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'manage_stories.php') !== false 
+                    ? '../admin/manage_stories.php?success=3' 
+                    : '../stories.php?success=3';
+                header('location: ' . $redirect_url);
                 exit();
             } else {
-                header('location: ../stories.php?error=story_delete_failed');
+                $redirect_url = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'manage_stories.php') !== false 
+                    ? '../admin/manage_stories.php?error=story_delete_failed' 
+                    : '../stories.php?error=story_delete_failed';
+                header('location: ' . $redirect_url);
                 exit();
             }
         } else {
-            header('location: ../stories.php?error=unauthorized');
+            $redirect_url = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'manage_stories.php') !== false 
+                ? '../admin/manage_stories.php?error=unauthorized' 
+                : '../stories.php?error=unauthorized';
+            header('location: ' . $redirect_url);
             exit();
         }
     } else {
-        header('location: ../stories.php?error=story_not_found');
+        $redirect_url = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'manage_stories.php') !== false 
+            ? '../admin/manage_stories.php?error=story_not_found' 
+            : '../stories.php?error=story_not_found';
+        header('location: ' . $redirect_url);
         exit();
     }
 } 

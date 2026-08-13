@@ -18,7 +18,7 @@ if(isset($_POST['create_announcement'])) {
 
     // Validate required fields
     if(empty($title) || empty($content) || empty($status)) {
-        header('location: ../admin/manage_announcements.php?error=missing_fields');
+        header('location: ../admin/announcements.php?error=missing_fields');
         exit();
     }
     
@@ -62,10 +62,25 @@ if(isset($_POST['create_announcement'])) {
     $result = mysqli_query($conn, $query);
     
     if($result) {
-        header('location: ../admin/manage_announcements.php?success=1');
+        // Determine redirect based on referer or user role
+        $is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'Admin';
+        $is_from_admin = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'admin/announcements.php') !== false;
+        
+        if($is_admin && $is_from_admin) {
+            header('location: ../admin/announcements.php?success=1');
+        } else {
+            header('location: ../announcements.php?success=1');
+        }
         exit();
     } else {
-        header('location: ../admin/manage_announcements.php?error=announcement_creation_failed');
+        $is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'Admin';
+        $is_from_admin = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'admin/announcements.php') !== false;
+        
+        if($is_admin && $is_from_admin) {
+            header('location: ../admin/announcements.php?error=announcement_creation_failed');
+        } else {
+            header('location: ../announcements.php?error=announcement_creation_failed');
+        }
         exit();
     }
 }
@@ -129,10 +144,10 @@ elseif (isset($_POST['update_announcement'])) {
     $result = mysqli_query($conn, $query);
     
     if($result) {
-        header('location: ../admin/manage_announcements.php?success=2');
+        header('location: ../admin/announcements.php?success=2');
         exit();
     } else {
-        header('location: ../admin/manage_announcements.php?error=announcement_update_failed');
+        header('location: ../admin/announcements.php?error=announcement_update_failed');
         exit();
     }
 }
@@ -159,7 +174,7 @@ elseif (isset($_POST['delete_announcement'])) {
         
         // Check if user is admin or the announcement poster
         if($_SESSION['role'] !== 'Admin' && $announcement['user_id'] !== $_SESSION['user_id']) {
-            header('location: ../admin/manage_announcements.php?error=unauthorized');
+            header('location: ../admin/announcements.php?error=unauthorized');
             exit();
         }
         
@@ -181,14 +196,14 @@ elseif (isset($_POST['delete_announcement'])) {
                 }
             }
             
-            header('location: ../admin/manage_announcements.php?success=3');
+            header('location: ../admin/announcements.php?success=3');
             exit();
         } else {
-            header('location: ../admin/manage_announcements.php?error=announcement_delete_failed');
+            header('location: ../admin/announcements.php?error=announcement_delete_failed');
             exit();
         }
     } else {
-        header('location: ../admin/manage_announcements.php?error=announcement_not_found');
+        header('location: ../admin/announcements.php?error=announcement_not_found');
         exit();
     }
 } 

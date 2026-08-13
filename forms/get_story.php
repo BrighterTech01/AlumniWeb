@@ -19,9 +19,9 @@ if (!isset($_GET['id'])) {
 $story_id = mysqli_real_escape_string($conn, $_GET['id']);
 
 // Fetch story details with user information
-$query = "SELECT s.*, v.username, v.role, v.image 
+$query = "SELECT s.*, CONCAT(u.firstname, ' ', u.lastname) AS username, u.role, u.image 
           FROM stories s 
-          JOIN view_user_details v ON s.user_id = v.user_id 
+          JOIN users u ON s.user_id = u.user_id 
           WHERE s.story_id = '$story_id'";
 $result = mysqli_query($conn, $query);
 

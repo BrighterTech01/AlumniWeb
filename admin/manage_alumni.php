@@ -2,12 +2,15 @@
 include_once '../components/connection.php';
 
 // Query to fetch alumni details from the view
-$query = "SELECT * FROM view_user_details ORDER BY date_created DESC";
+$query = "SELECT u.*, c.name as course_name 
+          FROM users u 
+          LEFT JOIN courses c ON u.course_id = c.course_id 
+          ORDER BY u.date_created DESC";
 $result = mysqli_query($conn, $query);
 $alumni = [];
 
 // Check if query was successful and has results
-if (mysqli_num_rows($result) > 0) {
+if ($result && mysqli_num_rows($result) > 0) {
     while ($row = mysqli_fetch_assoc($result)) {
         $alumni[] = $row;
     }
@@ -25,36 +28,14 @@ if($course_result) {
 
 // Fetch unique batches for filter dropdown
 $batches = [];
-$batch_query = "SELECT DISTINCT batch FROM alumnus ORDER BY batch DESC";
+$batch_query = "SELECT DISTINCT batch FROM users WHERE batch IS NOT NULL AND batch != '' ORDER BY batch DESC";
 $batch_result = mysqli_query($conn, $batch_query);
 if($batch_result) {
     while($row = mysqli_fetch_assoc($batch_result)) {
-        $batches[] = $row['batch'];
+        $batches[] = $row;
     }
 }
 
-// Display credentials if available
-if(isset($_SESSION['new_alumni_credentials']) && isset($_GET['show_credentials'])) {
-    $credentials = $_SESSION['new_alumni_credentials'];
-    echo '<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-                <h3 class="text-xl font-bold mb-4">New Alumni Account Created</h3>
-                <p class="mb-4">Please save these login credentials:</p>
-                <div class="space-y-2 mb-6">
-                    <p><strong>Username:</strong> ' . htmlspecialchars($credentials['username']) . '</p>
-                    <p><strong>Password:</strong> ' . htmlspecialchars($credentials['password']) . '</p>
-                    <p><strong>Email:</strong> ' . htmlspecialchars($credentials['email']) . '</p>
-                </div>
-                <p class="text-sm text-red-600 mb-4">Please note: The user should change their password upon first login.</p>
-                <button onclick="this.parentElement.parentElement.remove()" 
-                        class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-                    Close
-                </button>
-            </div>
-          </div>';
-    // Clear the credentials from session
-    unset($_SESSION['new_alumni_credentials']);
-}
 ?>
 
 <?php include_once '../components/adminHeader.php' ?>
@@ -80,14 +61,14 @@ if(isset($_SESSION['new_alumni_credentials']) && isset($_GET['show_credentials']
                         <option value="">All Courses</option>
                         <?php foreach($courses as $course): ?>
                             <option value="<?= htmlspecialchars($course['course_id']) ?>">
-                                <?= htmlspecialchars($course['course_name']) ?>
+                                <?= htmlspecialchars($course['name']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                     <select id="batchFilter" class="bg-light/20 text-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
                         <option value="">All Batches</option>
                         <?php foreach($batches as $batch): ?>
-                            <option value="<?= htmlspecialchars($batch) ?>"><?= htmlspecialchars($batch) ?></option>
+                            <option value="<?= htmlspecialchars($batch['batch']) ?>"><?= htmlspecialchars($batch['batch']) ?></option>
                         <?php endforeach; ?>
                     </select>
                     <select id="statusFilter" class="bg-light/20 text-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
@@ -111,11 +92,10 @@ if(isset($_SESSION['new_alumni_credentials']) && isset($_GET['show_credentials']
                     <thead>
                         <tr>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
-                               <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Image</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Course</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Batch</th>
-                           
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contact</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -130,21 +110,21 @@ if(isset($_SESSION['new_alumni_credentials']) && isset($_GET['show_credentials']
                         <?php else: ?>
                         <?php foreach ($alumni as $a): ?>
                         <tr class="hover:bg-light/5 transition-colors alumni-row" 
-                            data-id="<?= htmlspecialchars($a['alumnus_id']) ?>"
+                            data-id="<?= htmlspecialchars($a['user_id']) ?>"
                             data-course="<?= htmlspecialchars($a['course_id']) ?>"
                             data-batch="<?= htmlspecialchars($a['batch']) ?>"
                             data-status="<?= htmlspecialchars($a['status']) ?>">
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300"><?= htmlspecialchars($a['alumnus_id']) ?></td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300"><?= htmlspecialchars($a['user_id']) ?></td>
                             <td class="px-4 py-3 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0 h-8 w-8">
                                         <img class="h-8 w-8 rounded-full object-cover" 
                                              src="<?= !empty($a['image']) && $a['image'] != 'default.png' ? '../assets/uploads/alumni/' . htmlspecialchars($a['image']) : '../assets/uploads/alumni/default.png' ?>" 
-                                             alt="Profile">
+                                             alt="Profile" onerror="this.src='../assets/uploads/alumni/default.png'">
                                     </div>
                                     <div class="ml-4">
                                         <div class="text-sm font-medium text-white">
-                                            <?= htmlspecialchars($a['firstname'] . ' ' . $a['middlename'] . ' ' . $a['lastname']) ?>
+                                            <?= htmlspecialchars($a['firstname'] . ' ' . $a['lastname']) ?>
                                         </div>
                                         <div class="text-xs text-gray-400">
                                             <?= htmlspecialchars($a['email']) ?>
@@ -158,8 +138,8 @@ if(isset($_SESSION['new_alumni_credentials']) && isset($_GET['show_credentials']
                                 <div class="text-xs text-gray-400">Grad: <?= htmlspecialchars($a['graduation_year']) ?></div>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
-                                <div><?= htmlspecialchars($a['contact']) ?></div>
-                                <div class="text-xs text-gray-400"><?= htmlspecialchars($a['city'] . ', ' . $a['country']) ?></div>
+                                <div><?= htmlspecialchars($a['contact'] ?? 'N/A') ?></div>
+                                <div class="text-xs text-gray-400"><?= htmlspecialchars($a['city'] ?? '') ?><?= !empty($a['city']) && !empty($a['province']) ? ', ' : '' ?><?= htmlspecialchars($a['province'] ?? '') ?></div>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">
                                 <span class="px-2 py-1 rounded-full text-xs font-semibold <?= $a['status'] ? 'bg-neon-green/20 text-neon-green' : 'bg-gray-600/30 text-gray-400' ?>">
@@ -168,21 +148,25 @@ if(isset($_SESSION['new_alumni_credentials']) && isset($_GET['show_credentials']
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">
                                 <div class="flex space-x-2">
-                                    <button onclick="openViewModal(<?= $a['alumnus_id'] ?>)" 
+                                    <button onclick="openAlumniModal(<?= $a['user_id'] ?>, 'view')" 
                                             class="text-neon-green hover:text-white transition-colors" 
                                             title="View">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button onclick="openAlumniModal(<?= $a['alumnus_id'] ?>)" 
+                                    <button onclick="openAlumniModal(<?= $a['user_id'] ?>, 'edit')" 
                                             class="text-neon-blue hover:text-white transition-colors" 
                                             title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button onclick="openDeleteModal(<?= $a['alumnus_id'] ?>)" 
-                                            class="text-neon-pink hover:text-white transition-colors" 
-                                            title="Delete">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
+                                    <form method="POST" action="../controllers/alumniController.php" class="inline" onsubmit="return confirmDelete(this)">
+            <input type="hidden" name="user_id" value="<?= $a['user_id'] ?>">
+            <input type="hidden" name="delete_user" value="1">
+            <button type="submit" 
+                    class="text-neon-pink hover:text-white transition-colors" 
+                    title="Delete">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </form>
                                 </div>
                             </td>
                         </tr>
@@ -209,11 +193,11 @@ if(isset($_SESSION['new_alumni_credentials']) && isset($_GET['show_credentials']
         </div>
     </main>
 
-    <!-- Include the modal file -->
-    <?php include_once '../forms/modalAlumni.php' ?>
+    <!-- Modal container (will be filled dynamically) -->
+    <div id="alumniModalContainer"></div>
 
     <script src="../assets/js/toggleHandle.js"></script>
-    <script src="../assets/js/modalfunction.js"></script>
+    <script src="../assets/js/function.js"></script>
     
     <script>
         // Filter functionality

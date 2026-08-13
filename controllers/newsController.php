@@ -62,10 +62,25 @@ if(isset($_POST['create_news'])) {
     $result = mysqli_query($conn, $query);
     
     if($result) {
-        header('location: ../admin/manage_news.php?success=1');
+        // Determine redirect based on referer or user role
+        $is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'Admin';
+        $is_from_admin = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'manage_news.php') !== false;
+        
+        if($is_admin && $is_from_admin) {
+            header('location: ../admin/manage_news.php?success=1');
+        } else {
+            header('location: ../news.php?success=1');
+        }
         exit();
     } else {
-        header('location: ../admin/manage_news.php?error=news_creation_failed');
+        $is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'Admin';
+        $is_from_admin = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'manage_news.php') !== false;
+        
+        if($is_admin && $is_from_admin) {
+            header('location: ../admin/manage_news.php?error=news_creation_failed');
+        } else {
+            header('location: ../news.php?error=news_creation_failed');
+        }
         exit();
     }
 }

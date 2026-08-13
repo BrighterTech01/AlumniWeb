@@ -12,17 +12,20 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
     exit();
 }
 
-// Fetch user details from view_user_details
+// Fetch user details from users table
 $user_id = $_SESSION['user_id'];
-$query = "SELECT * FROM view_user_details WHERE user_id = '$user_id'";
+$query = "SELECT u.*, c.name AS course_name 
+          FROM users u 
+          LEFT JOIN courses c ON u.course_id = c.course_id 
+          WHERE u.user_id = '$user_id'";
 $result = mysqli_query($conn, $query);
 $user = mysqli_fetch_assoc($result);
 
 // Construct full name
-$fullname = trim($user['firstname'] . ' ' . $user['middlename'] . ' ' . $user['lastname']);
+$fullname = trim($user['firstname'] . ' ' . ($user['middlename'] ? $user['middlename'] . ' ' : '') . $user['lastname']);
 
 // Calculate profile completion
-$required_fields = ['firstname', 'lastname', 'gender', 'batch', 'course_id', 'contact', 'address', 'city', 'country', 'graduation_year'];
+$required_fields = ['firstname', 'lastname', 'gender', 'batch', 'course_id', 'contact', 'district', 'city', 'province', 'country', 'graduation_year'];
 $completed_fields = 0;
 foreach ($required_fields as $field) {
     if (!empty($user[$field])) {
@@ -31,20 +34,49 @@ foreach ($required_fields as $field) {
 }
 $profile_complete = ($completed_fields == count($required_fields));
 
-// Fetch upcoming events from view_event_alumni_details
-$events_query = "SELECT * FROM view_event_alumni_details 
-                WHERE schedule >= CURDATE() 
-                ORDER BY schedule ASC 
-                LIMIT 3";
+// Fetch upcoming events
+$events_query = "SELECT e.*, u.firstname, u.lastname 
+                 FROM events e 
+                 LEFT JOIN users u ON e.user_id = u.user_id 
+                 WHERE e.schedule >= CURDATE() 
+                 ORDER BY e.schedule ASC 
+                 LIMIT 3";
 $events_result = mysqli_query($conn, $events_query);
 
-// Fetch recent news from view_news_details
-$news_query = "SELECT * FROM view_news_details WHERE status = 'Published' ORDER BY date_posted DESC LIMIT 3";
+// Fetch recent news
+$news_query = "SELECT n.*, CONCAT(u.firstname, ' ', u.lastname) AS username 
+               FROM news n 
+               LEFT JOIN users u ON n.user_id = u.user_id 
+               WHERE n.status = 'Published' 
+               ORDER BY n.date_posted DESC 
+               LIMIT 3";
 $news_result = mysqli_query($conn, $news_query);
 
 // Fetch recent job postings
-$jobs_query = "SELECT * FROM view_job_postings WHERE application_deadline >= CURDATE() ORDER BY created_at DESC LIMIT 3";
+$jobs_query = "SELECT j.* 
+               FROM jobs j 
+               WHERE j.application_deadline >= CURDATE() 
+               ORDER BY j.created_at DESC 
+               LIMIT 3";
 $jobs_result = mysqli_query($conn, $jobs_query);
+
+// Fetch latest approved testimonials
+$testimonials_query = "SELECT t.*, u.firstname, u.lastname, u.image, u.batch, c.name AS course_name 
+                       FROM testimonials t 
+                       JOIN users u ON t.user_id = u.user_id 
+                       LEFT JOIN courses c ON u.course_id = c.course_id 
+                       WHERE t.status = 'approved' 
+                       ORDER BY t.created_at DESC 
+                       LIMIT 3";
+$testimonials_result = mysqli_query($conn, $testimonials_query);
+
+// Fetch latest announcements
+$announcements_query = "SELECT a.* 
+                        FROM announcements a 
+                        WHERE a.status = 'Active' 
+                        ORDER BY a.date_posted DESC 
+                        LIMIT 3";
+$announcements_result = mysqli_query($conn, $announcements_query);
 ?>
 
 
@@ -175,31 +207,96 @@ $jobs_result = mysqli_query($conn, $jobs_query);
                     </div>
                 </div>
 
-                <!-- Recent News -->
+                <!-- Recent News and Announcements -->
                 <div class="lg:col-span-1">
-                    <div class="glass rounded-xl p-6 border border-lighter/10">
+                    <div class="glass rounded-xl p-6 border border-lighter/10 mb-6">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-semibold">Latest News</h2>
                             <a href="news.php" class="text-sm text-neon-blue hover:text-neon-blue/80 transition-colors">
                                 View All <i class="fas fa-arrow-right ml-1"></i>
                             </a>
                         </div>
-                        <div class="space-y-4">
-                            <?php while ($news = mysqli_fetch_assoc($news_result)): ?>
-                            <div class="p-4 rounded-lg bg-light/20 hover:bg-light/30 transition-colors">
-                                <?php if (!empty($news['image_url'])): ?>
-                                <img src="./assets/uploads/news/<?php echo htmlspecialchars($news['image_url']); ?>" 
-                                     alt="<?php echo htmlspecialchars($news['title']); ?>" 
-                                     class="w-full h-40 object-cover rounded-lg mb-3">
-                                <?php endif; ?>
-                                <h3 class="font-semibold"><?php echo htmlspecialchars($news['title']); ?></h3>
-                                <p class="text-sm text-gray-400 mt-1"><?php echo substr(htmlspecialchars($news['content']), 0, 100) . '...'; ?></p>
-                                <div class="flex items-center gap-4 mt-2 text-sm text-gray-400">
-                                    <span><i class="fas fa-calendar mr-1"></i> <?php echo date('M d, Y', strtotime($news['date_posted'])); ?></span>
-                                    <span><i class="fas fa-user mr-1"></i> <?php echo htmlspecialchars($news['username']); ?></span>
-                                </div>
-                            </div>
-                            <?php endwhile; ?>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-lighter/20 text-sm">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Title</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Author</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-lighter/10">
+                                    <?php if (mysqli_num_rows($news_result) > 0): ?>
+                                        <?php while ($news = mysqli_fetch_assoc($news_result)): ?>
+                                        <tr>
+                                            <td class="px-4 py-2 whitespace-nowrap">
+                                                <a href="news.php" class="text-neon-blue hover:underline">
+                                                    <?php echo htmlspecialchars($news['title']); ?>
+                                                </a>
+                                            </td>
+                                            <td class="px-4 py-2 whitespace-nowrap text-gray-400">
+                                                <?php echo date('M d, Y', strtotime($news['date_posted'])); ?>
+                                            </td>
+                                            <td class="px-4 py-2 whitespace-nowrap text-gray-400">
+                                                <?php echo htmlspecialchars($news['username']); ?>
+                                            </td>
+                                        </tr>
+                                        <?php endwhile; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="3" class="px-4 py-3 text-center text-gray-400">No news found.</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="glass rounded-xl p-6 border border-lighter/10">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-semibold">Latest Announcements</h2>
+                            <a href="announcements.php" class="text-sm text-neon-blue hover:text-neon-blue/80 transition-colors">
+                                View All <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-lighter/20 text-sm">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Title</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Content</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Attachment</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-lighter/10">
+                                    <?php if (mysqli_num_rows($announcements_result) > 0): ?>
+                                        <?php while ($announcement = mysqli_fetch_assoc($announcements_result)): ?>
+                                        <tr>
+                                            <td class="px-4 py-2 whitespace-nowrap">
+                                                <a href="announcement_details.php?id=<?php echo $announcement['announce_id']; ?>" class="text-neon-blue hover:underline">
+                                                    <?php echo htmlspecialchars($announcement['title']); ?>
+                                                </a>
+                                            </td>
+                                            <td class="px-4 py-2 text-gray-400 max-w-xs break-words" style="white-space:normal;">
+                                                <?php echo htmlspecialchars(mb_strimwidth($announcement['content'], 0, 50, '...')); ?>
+                                            </td>
+                                            <td class="px-4 py-2 text-gray-400">
+                                                <?php if (!empty($announcement['attachment_url'])): ?>
+                                                    <a href="<?php echo htmlspecialchars($announcement['attachment_url']); ?>" target="_blank" class="text-neon-blue hover:underline">View</a>
+                                                <?php else: ?>
+                                                    <span class="text-xs text-gray-500">None</span>
+                                                <?php endif; ?>
+                                            </td>
+                                  
+                                           
+                                        </tr>
+                                        <?php endwhile; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="5" class="px-4 py-3 text-center text-gray-400">No announcements found.</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -255,6 +352,58 @@ $jobs_result = mysqli_query($conn, $jobs_query);
                             </div>
                         </div>
                         <?php endwhile; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alumni Testimonials -->
+            <div class="mt-6">
+                <div class="glass rounded-xl p-6 border border-lighter/10">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-semibold">Alumni Testimonials</h2>
+                        <a href="testimonials.php" class="text-sm text-neon-blue hover:text-neon-blue/80 transition-colors">
+                            View All <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <?php if (mysqli_num_rows($testimonials_result) > 0): ?>
+                            <?php while ($testimonial = mysqli_fetch_assoc($testimonials_result)): ?>
+                                <div class="p-4 rounded-lg bg-light/20 hover:bg-light/30 transition-colors flex flex-col h-full">
+                                    <div class="flex-1">
+                                        <p class="text-gray-300 mb-4">"<?php echo nl2br(htmlspecialchars($testimonial['testimonial_text'])); ?>"</p>
+                                        <div class="flex gap-1 mb-2">
+                                            <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                <i class="fas fa-star <?php echo $i <= $testimonial['rating'] ? 'text-yellow-400' : 'text-gray-600'; ?>"></i>
+                                            <?php endfor; ?>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-3 pt-4 border-t border-lighter/10 mt-4">
+                                        <?php if (!empty($testimonial['image'])): ?>
+                                            <img src="./assets/uploads/alumni/<?php echo htmlspecialchars($testimonial['image']); ?>" alt="<?php echo htmlspecialchars($testimonial['firstname'] . ' ' . $testimonial['lastname']); ?>" class="w-10 h-10 rounded-full object-cover">
+                                        <?php else: ?>
+                                            <div class="w-10 h-10 rounded-full bg-neon-blue/10 flex items-center justify-center">
+                                                <i class="fas fa-user text-neon-blue"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div>
+                                            <h3 class="font-semibold text-sm"><?php echo htmlspecialchars($testimonial['firstname'] . ' ' . $testimonial['lastname']); ?></h3>
+                                            <p class="text-xs text-gray-500">
+                                                Batch <?php echo htmlspecialchars($testimonial['batch']); ?> •
+                                                <?php echo htmlspecialchars($testimonial['course_name']); ?>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <div class="col-span-full">
+                                <div class="glass rounded-xl p-8 border border-lighter/10 text-center">
+                                    <i class="fas fa-comments text-4xl text-gray-400 mb-4"></i>
+                                    <h3 class="text-xl font-semibold mb-2">No Testimonials Yet</h3>
+                                    <p class="text-gray-400">Be the first to share your success story!</p>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

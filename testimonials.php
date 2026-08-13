@@ -12,14 +12,14 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
     exit();
 }
 
-// Fetch user details from view_user_details
+// Fetch user details from users table
 $user_id = $_SESSION['user_id'];
-$query = "SELECT * FROM view_user_details WHERE user_id = '$user_id'";
+$query = "SELECT * FROM users WHERE user_id = '$user_id'";
 $result = mysqli_query($conn, $query);
 $user = mysqli_fetch_assoc($result);
 
 // Construct full name
-$fullname = trim($user['firstname'] . ' ' . $user['middlename'] . ' ' . $user['lastname']);
+$fullname = trim($user['firstname'] . ' ' . ($user['middlename'] ? $user['middlename'] . ' ' : '') . $user['lastname']);
 
 // Handle testimonial submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_testimonial'])) {
@@ -55,9 +55,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_testimonial'])
 }
 
 // Fetch approved testimonials
-$testimonials_query = "SELECT t.*, u.firstname, u.lastname, u.image, u.batch, u.course_name 
+$testimonials_query = "SELECT t.*, u.firstname, u.lastname, u.image, u.batch, c.name AS course_name 
                       FROM testimonials t 
-                      JOIN view_user_details u ON t.user_id = u.user_id 
+                      JOIN users u ON t.user_id = u.user_id 
+                      LEFT JOIN courses c ON u.course_id = c.course_id 
                       WHERE t.status = 'approved' 
                       ORDER BY t.created_at DESC";
 $testimonials_result = mysqli_query($conn, $testimonials_query);
@@ -73,26 +74,7 @@ $testimonials_result = mysqli_query($conn, $testimonials_query);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .glass {
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .neon-glow {
-            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
-        }
-        .testimonial-card {
-            transition: transform 0.2s ease-in-out;
-        }
-        .testimonial-card:hover {
-            transform: translateY(-2px);
-        }
-        .quote-icon {
-            opacity: 0.1;
-        }
-        .star-rating {
-            color: #FFD700;
-        }
+      
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 to-gray-800 min-h-screen text-white">
@@ -118,7 +100,7 @@ $testimonials_result = mysqli_query($conn, $testimonials_query);
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <?php if (mysqli_num_rows($testimonials_result) > 0): ?>
                     <?php while ($testimonial = mysqli_fetch_assoc($testimonials_result)): ?>
-                        <div class="testimonial-card glass rounded-xl p-6 border border-lighter/10">
+                        <div class="testimonial-card glass rounded-xl p-6 border border-lighter/10 cursor-pointer" onclick="openTestimonialModal(<?php echo $testimonial['testimonial_id']; ?>)">
                             <div class="relative">
                                 <i class="fas fa-quote-left text-4xl text-neon-blue quote-icon absolute -top-2 -left-2"></i>
                                 <p class="text-gray-300 mb-6 relative z-10"><?php echo nl2br(htmlspecialchars($testimonial['testimonial_text'])); ?></p>
@@ -241,6 +223,8 @@ $testimonials_result = mysqli_query($conn, $testimonials_query);
         </div>
     </div>
 
+    <!-- Modal container -->
+    <div id="testimonialModalContainer"></div>
     <script>
         // Close modal when clicking outside
         document.getElementById('testimonialModal').addEventListener('click', function(e) {
@@ -266,6 +250,17 @@ $testimonials_result = mysqli_query($conn, $testimonials_query);
                 });
             });
         });
+
+        function openTestimonialModal(testimonialId) {
+            fetch('forms/alumniModal/modalTestimonial.php?id=' + testimonialId)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('testimonialModalContainer').innerHTML = html;
+                });
+        }
+        function closeTestimonialModal() {
+            document.getElementById('testimonialModalContainer').innerHTML = '';
+        }
     </script>
 </body>
 </html>

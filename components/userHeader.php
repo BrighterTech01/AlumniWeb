@@ -13,15 +13,18 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
 
 include_once 'connection.php';
 
-// Fetch user details from view_user_details
+// Fetch user details from users table
 $user_id = $_SESSION['user_id'];
-$query = "SELECT * FROM view_user_details WHERE user_id = '$user_id'";
+$query = "SELECT * FROM users WHERE user_id = '$user_id'";
 $result = mysqli_query($conn, $query);
 $user = mysqli_fetch_assoc($result);
 
 // Get user's full name
-$fullname = trim($user['firstname'] . ' ' . $user['middlename'] . ' ' . $user['lastname']);
-$image = $user['image'] ? './assets/uploads/alumni/' . $user['image'] : 'https://ui-avatars.com/api/?name=' . urlencode($fullname) . '&background=random';
+$fullname = trim($user['firstname'] . ' ' . ($user['middlename'] ? $user['middlename'] . ' ' : '') . $user['lastname']);
+// Set profile image path
+$image = (!empty($user['image']) && $user['image'] != 'default.png') 
+    ? './assets/uploads/alumni/' . htmlspecialchars($user['image']) 
+    : './assets/uploads/alumni/default.png';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -29,9 +32,10 @@ $image = $user['image'] ? './assets/uploads/alumni/' . $user['image'] : 'https:/
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NMSCST Alumni Portal</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp,container-queries"></script>
-    <link rel="stylesheet" href="../assets/css/header.css">
-    <link href="../assets/css/output.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,container-queries"></script>
+    <link rel="stylesheet" href="assets/css/header.css">
+    <link href="assets/css/output.css" rel="stylesheet">
+    <link href="assets/css/style.css" rel="stylesheet">
     <script>
         tailwind.config = {
             content: [
@@ -117,10 +121,10 @@ $image = $user['image'] ? './assets/uploads/alumni/' . $user['image'] : 'https:/
                     <i class="fas fa-comment-alt w-5 text-center"></i>
                     <span>Testimonials</span>
                 </a>
-                <a class="flex items-center space-x-3 p-3 rounded-lg <?php echo basename($_SERVER['PHP_SELF']) == 'messages.php' ? 'bg-primary/20 text-white border border-primary/30 neon-glow' : 'hover:bg-light/20 hover:text-white transition-colors'; ?>" href="messages.php">
+                <a class="flex items-center space-x-3 p-3 rounded-lg <?php echo basename($_SERVER['PHP_SELF']) == 'messages.php' ? 'bg-primary/20 text-white border border-primary/30 neon-glow' : 'hover:bg-light/20 hover:text-white transition-colors'; ?>" href="announcements.php">
                     <i class="fas fa-envelope w-5 text-center"></i>
-                    <span>Messages</span>
-                    <span class="ml-auto bg-gradient-to-r from-neon-blue to-neon-purple text-white text-xs px-2 py-0.5 rounded-full">3</span>
+                    <span>Announcements</span>
+                    <span class="ml-auto bg-gradient-to-r from-neon-blue to-neon-purple text-white text-xs px-2 py-0.5 rounded-full"></span>
                 </a>
             </nav>
         </div>
@@ -190,7 +194,7 @@ $image = $user['image'] ? './assets/uploads/alumni/' . $user['image'] : 'https:/
                             <span>Settings</span>
                         </a>
                         <div class="border-t border-lighter/10 my-1"></div>
-                        <a href="../logout.php" class="flex items-center space-x-2 px-4 py-2 text-sm text-red-400 hover:bg-light/20 hover:text-red-300 transition-colors">
+                        <a href="./logout.php" class="flex items-center space-x-2 px-4 py-2 text-sm text-red-400 hover:bg-light/20 hover:text-red-300 transition-colors">
                             <i class="fas fa-sign-out-alt w-5"></i>
                             <span>Logout</span>
                         </a>
